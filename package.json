@@ -1,0 +1,14 @@
+{
+  "name": "wing-font-ppt-addin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "node build.mjs vendor",
+    "build": "node build.mjs",
+    "test": "node test.mjs"
+  },
+  "dependencies": {
+    "harfbuzzjs": "1.6.2",
+    "wawoff2": "2.0.1"
+  }
+}

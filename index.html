@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wing Font</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 12px; }
+    label { display: block; margin-bottom: 8px; }
+    input[type=text] { width: 100%; box-sizing: border-box; padding: 4px; }
+    button { padding: 6px 12px; margin: 0 4px 8px 0; }
+    #variants button { font-size: 40px; line-height: 1.6; padding: 0 8px; }
+    #status { white-space: pre-wrap; }
+    #status.bad { color: #b00020; }
+    /* Standalone sandbox: ccmp off imitates PowerPoint's lack of GSUB. */
+    #sandbox { width: 100%; box-sizing: border-box; height: 8em; font-size: 32px; line-height: 1.8; font-feature-settings: "ccmp" 0; }
+  </style>
+</head>
+<body>
+  <label>字型（留空＝跟選取文字嘅字型）
+    <input type="text" id="font" placeholder="例如 NotoSansHK-NotoCond-lshk，或字型檔 URL">
+  </label>
+  <label>或者用本機字型檔
+    <input type="file" id="file" accept=".ttf,.otf,.woff2">
+  </label>
+  <button id="convert">轉換選取文字</button>
+  <button id="restore">還原</button>
+  <div id="variants" aria-label="揀讀音"></div>
+  <p id="status" role="status">載入中…</p>
+  <textarea id="sandbox" hidden aria-label="測試文字">我去銀行攞錢，行２路返屋企。行０ｚａａ１</textarea>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
