@@ -7,11 +7,14 @@
   <Id>d5d8f588-aede-4d00-b5f7-56c590a05af3</Id>
   <Version>0.1.0.0</Version>
   <ProviderName>Wing Font</ProviderName>
-  <DefaultLocale>zh-HK</DefaultLocale>
+  <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Wing Font"/>
-  <Description DefaultValue="將 Wing Font 注音語法轉成 PowerPoint 都顯示到嘅字元（IVS／PUA），兼逐字揀讀音。"/>
-  <IconUrl DefaultValue="https://chunlaw.github.io/wing-font-ppt-addin/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://chunlaw.github.io/wing-font-ppt-addin/assets/icon-80.png"/>
+  <Description DefaultValue="Makes Wing Font annotations display in PowerPoint: converts the typed syntax into characters PowerPoint can render, and lets you pick readings character by character.">
+    <Override Locale="zh-TW" Value="將 Wing Font 注音語法轉成 PowerPoint 都顯示到嘅字元，兼逐字揀讀音。"/>
+    <Override Locale="zh-HK" Value="將 Wing Font 注音語法轉成 PowerPoint 都顯示到嘅字元，兼逐字揀讀音。"/>
+  </Description>
+  <IconUrl DefaultValue="https://wing-font-ppt.chunlaw.io/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://wing-font-ppt.chunlaw.io/assets/icon-80.png"/>
   <SupportUrl DefaultValue="https://github.com/chunlaw/wing-font-ppt-addin"/>
   <AppDomains>
     <AppDomain>https://wing-font.chunlaw.io</AppDomain>
@@ -21,7 +24,7 @@
     <Host Name="Document"/>
   </Hosts>
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://chunlaw.github.io/wing-font-ppt-addin/index.html"/>
+    <SourceLocation DefaultValue="https://wing-font-ppt.chunlaw.io/index.html"/>
   </DefaultSettings>
   <Permissions>ReadWriteDocument</Permissions>
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
@@ -93,19 +96,25 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16" DefaultValue="https://chunlaw.github.io/wing-font-ppt-addin/assets/icon-16.png"/>
-        <bt:Image id="Icon.32" DefaultValue="https://chunlaw.github.io/wing-font-ppt-addin/assets/icon-32.png"/>
-        <bt:Image id="Icon.80" DefaultValue="https://chunlaw.github.io/wing-font-ppt-addin/assets/icon-80.png"/>
+        <bt:Image id="Icon.16" DefaultValue="https://wing-font-ppt.chunlaw.io/assets/icon-16.png"/>
+        <bt:Image id="Icon.32" DefaultValue="https://wing-font-ppt.chunlaw.io/assets/icon-32.png"/>
+        <bt:Image id="Icon.80" DefaultValue="https://wing-font-ppt.chunlaw.io/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Pane.Url" DefaultValue="https://chunlaw.github.io/wing-font-ppt-addin/index.html"/>
+        <bt:Url id="Pane.Url" DefaultValue="https://wing-font-ppt.chunlaw.io/index.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="Group.Label" DefaultValue="Wing Font"/>
-        <bt:String id="Open.Label" DefaultValue="Wing Font 注音"/>
+        <bt:String id="Open.Label" DefaultValue="Wing Font">
+          <bt:Override Locale="zh-TW" Value="Wing Font 注音"/>
+          <bt:Override Locale="zh-HK" Value="Wing Font 注音"/>
+        </bt:String>
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="Open.Tip" DefaultValue="開啟面板：轉換選取文字、揀讀音、還原。"/>
+        <bt:String id="Open.Tip" DefaultValue="Open the pane: convert the selection, pick readings, restore.">
+          <bt:Override Locale="zh-TW" Value="開啟面板：轉換選取文字、揀讀音、還原。"/>
+          <bt:Override Locale="zh-HK" Value="開啟面板：轉換選取文字、揀讀音、還原。"/>
+        </bt:String>
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>

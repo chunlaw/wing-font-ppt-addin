@@ -33,7 +33,7 @@ export function parseUvs(cmap) {
 }
 
 /**
- * Load a font (sfnt bytes) and return { convert, variants }.
+ * Load a font (sfnt bytes) and return { convert, variants, version, … }.
  * `hb` is the harfbuzzjs module.
  */
 export function loadFont(hb, bytes) {
@@ -161,7 +161,10 @@ export function loadFont(hb, bytes) {
     return list;
   };
 
-  return { convert, variants, shape, cmapOnly };
+  // NameID 5, e.g. "Version 2.004; modified by Wing Font 2026-10-05".
+  const version = face.getName(5, "en") || "";
+
+  return { convert, variants, shape, cmapOnly, version };
 }
 
 /** Undo: delete IVS selectors and BMP PUA mark carriers (lossy — see README). */

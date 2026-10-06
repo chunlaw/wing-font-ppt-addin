@@ -1,5 +1,6 @@
 import * as hb from "./vendor/harfbuzzjs/index.mjs";
 import { applyChanges, loadFont, stripChanges } from "./convert.js";
+import { setLanguage, t } from "./i18n.js";
 
 const CDN = "https://wing-font.chunlaw.io/fonts/";
 const $ = (id) => document.getElementById(id);
@@ -28,7 +29,7 @@ const decompress = async (bytes) => {
     document.head.append(s);
   });
   const out = (await woff2).decompress(bytes);
-  if (!out) throw new Error("woff2 解壓失敗");
+  if (!out) throw new Error(t("woff2Failed"));
   return out;
 };
 
@@ -37,19 +38,43 @@ async function fontBytes(name) {
   const cache = await globalThis.caches?.open("wing-fonts");
   let res = await cache?.match(key);
   if (!res) {
-    if (name.startsWith("local:")) throw new Error(`請重新揀本機字型檔「${name.slice(6)}」`);
+    if (name.startsWith("local:")) throw new Error(t("repickLocal", name.slice(6)));
     res = await fetch(key);
-    if (!res.ok) throw new Error(`搵唔到字型「${name}」（${res.status}）。請填官方字型名，或者揀本機字型檔。`);
+    if (!res.ok) {
+      showFontInfo(t("notFound", name, res.status) + "\n" + t("loadLocal"), true);
+      throw new Error(t("notLoaded", name));
+    }
     await cache?.put(key, res.clone());
   }
   const bytes = new Uint8Array(await res.arrayBuffer());
   return String.fromCharCode(...bytes.subarray(0, 4)) === "wOF2" ? decompress(bytes) : bytes;
 }
 
+// The add-in can't read installed fonts: it converts with its own copy,
+// PowerPoint renders with the installed one. Selector numbering can differ
+// between builds, so show which build was loaded and, when that can't be
+// told (no build date, or no copy to download), ask for the installed file.
+const showFontInfo = (msg, bad = false) => {
+  $("fontinfo").textContent = msg;
+  $("fontinfo").className = bad ? "bad" : "";
+  if (bad) $("fontopts").open = true; // the fix is in there: show it
+};
+function describeFont({ name, font }) {
+  const local = name.startsWith("local:");
+  const dated = /Wing Font \d{4}-\d{2}-\d{2}/.test(font.version);
+  const lines = [t("infoFont", local ? t("infoLocal", name.slice(6)) : name), t("infoVersion", font.version)];
+  if (!local) {
+    lines.push(dated
+      ? t("checkVersion")
+      : t("noBuildDate") + "\n" + t("loadLocal"));
+  }
+  showFontInfo(lines.join("\n"), !local && !dated);
+}
+
 let current; // { name, font, sha, css }
 async function useFont(name, bytes) {
   if (current?.name === name) return current;
-  say(`載入字型 ${name}…`);
+  say(t("loading", name));
   bytes ??= await fontBytes(name);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const sha = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
@@ -57,11 +82,12 @@ async function useFont(name, bytes) {
   document.fonts.add(await new FontFace(css, bytes).load());
   $("sandbox").style.fontFamily = css;
   current = { name, font: loadFont(hb, bytes), sha, css };
+  describeFont(current);
   // The deck remembers which build converted it; warn when it differs.
   const rec = settings()?.get("wingFont");
   say(rec && rec.name === name && rec.sha !== sha
-    ? `注意：字型「${name}」同呢份文件上次轉換時用嘅版本唔同，舊文字嘅讀音可能有變。`
-    : `字型 ${name} 已載入。`, rec && rec.name === name && rec.sha !== sha);
+    ? t("versionChanged", name)
+    : t("loaded", name), rec && rec.name === name && rec.sha !== sha);
   return current;
 }
 
@@ -69,7 +95,7 @@ async function useFont(name, bytes) {
 const overrideKey = (family) => "font:" + (family || "");
 function fontFor(family) {
   const name = $("font").value.trim() || localStorage.getItem(overrideKey(family)) || family;
-  if (!name) throw new Error("唔知用邊個字型：請喺上面填字型名，或者揀本機字型檔。");
+  if (!name) throw new Error(t("noFont"));
   if ($("font").value.trim()) localStorage.setItem(overrideKey(family), name);
   return useFont(name);
 }
@@ -143,33 +169,27 @@ const adapters = {
 };
 
 let withSelection = adapters.standalone;
-let busy = false;
-async function run(fn) {
-  if (busy) return;
-  busy = true;
-  try {
-    await withSelection(fn);
-  } catch (e) {
-    say(e.message || String(e), true);
-  } finally {
-    busy = false;
-  }
-}
+// Actions run one at a time, in order. A click must never be dropped just
+// because a picker refresh (fired by every selection change) is in flight.
+let queue = Promise.resolve();
+const run = (fn, quiet = false) =>
+  (queue = queue
+    .then(() => withSelection(fn))
+    .catch((e) => quiet || say(e.message || String(e), true)));
 
 // ── Actions ──────────────────────────────────────────────────────────
 
 $("convert").onclick = () =>
   run(async (text, family) => {
-    if (!text) throw new Error("請先選取文字或者文字方塊。");
+    if (!text) throw new Error(t("noSelection"));
     const f = await fontFor(family);
     const r = f.font.convert(text);
-    if (!r.cmapOk) throw new Error("自我驗證失敗：轉換結果同字型排版唔一致，冇改動文字。");
-    const notes = [`已轉換 ${r.changes.length} 處。`];
+    if (!r.cmapOk) throw new Error(t("selfCheckFailed"));
+    const notes = [t("converted", r.changes.length)];
     if (r.failed.length) {
-      notes.push(`有 ${r.failed.length} 處冇 cmap 路徑，保留原文：` +
-        r.failed.map((x) => `「${text.slice(x.start, x.end)}」`).join(""));
+      notes.push(t("failed", r.failed.length, r.failed.map((x) => t("quote", text.slice(x.start, x.end))).join("")));
     }
-    if (!r.gsubOk) notes.push("注意：轉換後喺會做 GSUB 嘅程式（Word、網頁）讀音可能唔同。");
+    if (!r.gsubOk) notes.push(t("gsubWarning"));
     if (r.changes.length && settings()) {
       settings().set("wingFont", { name: f.name, sha: f.sha });
       settings().saveAsync();
@@ -181,16 +201,20 @@ $("convert").onclick = () =>
 $("restore").onclick = () =>
   run(async (text) => {
     const changes = stripChanges(text);
-    say(`已還原 ${changes.length} 處。`);
+    say(t("restored", changes.length));
     return changes;
   });
 
 // Picker: when exactly one character is selected, draw each of its cmap-14
 // variants with the loaded font itself; clicking one swaps the selection.
 const ONE_CHAR = /^([^\u{E000}-\u{F8FF}\u{E0100}-\u{E01EF}])[\u{E000}-\u{F8FF}\u{E0100}-\u{E01EF}]*$/u;
+let pickerQueued = false; // collapse bursts of selection-change events
 async function refreshPicker() {
+  if (pickerQueued) return;
+  pickerQueued = true;
   const box = $("variants");
   await run(async (text, family) => {
+    pickerQueued = false;
     const char = text.match(ONE_CHAR)?.[1];
     const f = char && (await fontFor(family).catch(() => null));
     const seen = new Set();
@@ -198,18 +222,23 @@ async function refreshPicker() {
     box.replaceChildren(...(list.length > 1 ? list : []).map((v) => {
       const b = document.createElement("button");
       b.textContent = v.text;
+      b.setAttribute("aria-pressed", String(v.text === text)); // the one in the document now
       b.style.fontFamily = f.css;
       b.onclick = () => run(async (t) => [{ start: 0, end: t.length, replacement: v.text }]);
       return b;
     }));
     return [];
-  });
+  }, true); // quiet: selecting a picture is not an error worth showing
+  pickerQueued = false;
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────
 
 // office.js may be missing (offline, plain browser): fall back to the sandbox.
 const info = await (globalThis.Office?.onReady() ?? {});
+// Follow the Office UI language; in a plain browser, ?lang= or the browser's.
+setLanguage(info.host ? Office.context.displayLanguage
+  : new URLSearchParams(location.search).get("lang") || navigator.language);
 if (info.host === "PowerPoint" && Office.context.requirements.isSetSupported("PowerPointApi", "1.5")) {
   withSelection = adapters.powerpoint;
 } else if (info.host) {
@@ -220,6 +249,9 @@ if (info.host) {
 } else {
   $("sandbox").hidden = false;
   $("sandbox").onselect = $("sandbox").onkeyup = $("sandbox").onmouseup = refreshPicker;
-  $("font").value = new URLSearchParams(location.search).get("font") ?? "";
 }
-say("準備好。");
+const params = new URLSearchParams(location.search);
+$("font").value = params.get("font") ?? "";
+say(t("ready"));
+// Development only: test/ isn't part of the published site.
+if (params.get("selftest")) (await import("./test/office/selftest.js")).run(params.get("selftest"));

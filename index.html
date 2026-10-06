@@ -1,34 +1,86 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wing Font</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <style>
-    body { font: 14px/1.5 system-ui, sans-serif; margin: 12px; }
-    label { display: block; margin-bottom: 8px; }
-    input[type=text] { width: 100%; box-sizing: border-box; padding: 4px; }
-    button { padding: 6px 12px; margin: 0 4px 8px 0; }
-    #variants button { font-size: 40px; line-height: 1.6; padding: 0 8px; }
-    #status { white-space: pre-wrap; }
-    #status.bad { color: #b00020; }
+    :root {
+      color-scheme: light dark;
+      --bg: #fff; --fg: #242424; --muted: #616161; --line: #e0e0e0; --card: #f5f5f5;
+      --accent: #c43e1c; --accent-fg: #fff; --warn-bg: #fdf3f4; --warn-fg: #b10e1c;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1f1f1f; --fg: #f0f0f0; --muted: #adadad; --line: #424242; --card: #2b2b2b;
+        --accent: #e8825d; --accent-fg: #1f1f1f; --warn-bg: #3b1519; --warn-fg: #f1a7ad;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { font: 13px/1.5 "Segoe UI", system-ui, -apple-system, "PingFang HK", "Microsoft JhengHei", sans-serif;
+           margin: 0; padding: 12px; background: var(--bg); color: var(--fg); }
+    h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 16px 0 6px; letter-spacing: .02em; }
+    button, .button { font: inherit; padding: 7px 12px; border-radius: 4px; border: 1px solid var(--line);
+                      background: var(--bg); color: var(--fg); cursor: pointer; }
+    button:hover, .button:hover { background: var(--card); }
+    button:focus-visible, .button:focus-within, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .actions { display: flex; gap: 8px; }
+    #convert { flex: 1; background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+    #convert:hover { filter: brightness(1.08); }
+
+    /* Font card */
+    .card { background: var(--card); border-radius: 6px; padding: 8px 10px; }
+    #fontinfo { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+    #fontinfo:empty::before { content: attr(data-empty); color: var(--muted); }
+    #fontinfo.bad { color: var(--warn-fg); }
+    .card:has(#fontinfo.bad) { background: var(--warn-bg); }
+    details { margin-top: 6px; font-size: 12px; }
+    summary { cursor: pointer; color: var(--muted); }
+    details label { display: block; margin-top: 8px; color: var(--muted); }
+    input[type=text] { width: 100%; margin-top: 2px; padding: 5px 6px; font: inherit; color: var(--fg);
+                       background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+    .button { display: inline-block; margin-top: 8px; font-size: 12px; }
+    .button input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+
+    /* Reading picker */
+    #variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+    #variants:empty::before { content: attr(data-empty); color: var(--muted); grid-column: 1 / -1; font-size: 12px; }
+    #variants button { font-size: 34px; line-height: 1.7; padding: 2px 0 0; }
+    #variants button[aria-pressed=true] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+    #status { margin: 12px 0 0; white-space: pre-wrap; font-size: 12px; color: var(--muted); }
+    #status.bad { color: var(--warn-fg); }
     /* Standalone sandbox: ccmp off imitates PowerPoint's lack of GSUB. */
-    #sandbox { width: 100%; box-sizing: border-box; height: 8em; font-size: 32px; line-height: 1.8; font-feature-settings: "ccmp" 0; }
+    #sandbox { width: 100%; height: 7em; margin-top: 12px; padding: 6px; font-size: 28px; line-height: 1.9; color: var(--fg);
+               background: var(--bg); border: 1px dashed var(--line); border-radius: 4px; font-feature-settings: "ccmp" 0; }
   </style>
 </head>
 <body>
-  <label>字型（留空＝跟選取文字嘅字型）
-    <input type="text" id="font" placeholder="例如 NotoSansHK-NotoCond-lshk，或字型檔 URL">
-  </label>
-  <label>或者用本機字型檔
-    <input type="file" id="file" accept=".ttf,.otf,.woff2">
-  </label>
-  <button id="convert">轉換選取文字</button>
-  <button id="restore">還原</button>
-  <div id="variants" aria-label="揀讀音"></div>
-  <p id="status" role="status">載入中…</p>
-  <textarea id="sandbox" hidden aria-label="測試文字">我去銀行攞錢，行２路返屋企。行０ｚａａ１</textarea>
+  <div class="actions">
+    <button id="convert" data-i18n="convert"></button>
+    <button id="restore" data-i18n="restore" data-i18n-attr="title:restoreTip"></button>
+  </div>
+  <p id="status" role="status">…</p>
+
+  <h2 data-i18n="pickHeading"></h2>
+  <div id="variants" data-i18n-attr="data-empty:pickEmpty"></div>
+
+  <h2 data-i18n="fontHeading"></h2>
+  <div class="card">
+    <p id="fontinfo" role="status" data-i18n-attr="data-empty:fontEmpty"></p>
+    <details id="fontopts">
+      <summary data-i18n="changeFont"></summary>
+      <label><span data-i18n="fontField"></span>
+        <input type="text" id="font" data-i18n-attr="placeholder:fontPlaceholder">
+      </label>
+      <label class="button"><span data-i18n="pickFile"></span>
+        <input type="file" id="file" accept=".ttf,.otf,.woff2">
+      </label>
+    </details>
+  </div>
+
+  <textarea id="sandbox" hidden data-i18n-attr="aria-label:sandboxLabel">我去銀行攞錢，行２路返屋企。行０ｚａａ１</textarea>
   <script type="module" src="app.js"></script>
 </body>
 </html>
