@@ -17,7 +17,7 @@ for (const [to, from] of Object.entries(VENDOR)) cpSync(from, to);
 
 if (process.argv[2] !== "vendor") {
   rmSync("dist", { recursive: true, force: true });
-  for (const f of ["index.html", "app.js", "convert.js", "i18n.js", "assets", "vendor"]) {
+  for (const f of ["index.html", "manifest.xml", "app.js", "convert.js", "i18n.js", "assets", "vendor"]) {
     cpSync(f, "dist/" + f, { recursive: true });
   }
 }
