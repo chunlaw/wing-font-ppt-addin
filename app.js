@@ -33,13 +33,28 @@ const decompress = async (bytes) => {
   return out;
 };
 
+// When the published copy of a font was last changed (null if it can't be
+// told: offline, not an official font, ...). Last-Modified is one of the few
+// headers a cross-origin page may read.
+const published = (url) =>
+  fetch(url, { method: "HEAD", cache: "no-store" })
+    .then((r) => (r.ok ? r.headers.get("Last-Modified") : null))
+    .catch(() => null);
+
 async function fontBytes(name) {
   const key = cacheKey(name);
   const cache = await globalThis.caches?.open("wing-fonts");
   let res = await cache?.match(key);
+  if (res && !name.startsWith("local:")) {
+    // A remembered download goes stale when the font is republished: the
+    // user installs the new build and the pane would keep converting with
+    // the old one. Ask the server whether it changed and fetch again if so.
+    const now = await published(key);
+    if (now && now !== res.headers.get("Last-Modified")) res = null;
+  }
   if (!res) {
     if (name.startsWith("local:")) throw new Error(t("repickLocal", name.slice(6)));
-    res = await fetch(key);
+    res = await fetch(key, { cache: "no-store" });
     if (!res.ok) {
       showFontInfo(t("notFound", name, res.status) + "\n" + t("loadLocal"), true);
       throw new Error(t("notLoaded", name));
@@ -59,16 +74,26 @@ const showFontInfo = (msg, bad = false) => {
   $("fontinfo").className = bad ? "bad" : "";
   if (bad) $("fontopts").open = true; // the fix is in there: show it
 };
-function describeFont({ name, font }) {
+async function describeFont({ name, font }) {
   const local = name.startsWith("local:");
-  const dated = /Wing Font \d{4}-\d{2}-\d{2}/.test(font.version);
+  const built = font.version.match(/Wing Font (\d{4}-\d{2}-\d{2})/)?.[1];
   const lines = [t("infoFont", local ? t("infoLocal", name.slice(6)) : name), t("infoVersion", font.version)];
+  let bad = false;
   if (!local) {
-    lines.push(dated
-      ? t("checkVersion")
-      : t("noBuildDate") + "\n" + t("loadLocal"));
+    lines.push(built ? t("checkVersion") : t("noBuildDate") + "\n" + t("loadLocal"));
+    bad = !built;
+  } else if (built && font.family) {
+    // A picked file is remembered under its file name. If the official font
+    // of that family has been republished since this copy was built, the
+    // user may well have installed the newer one: say so.
+    const now = await published(CDN + encodeURIComponent(font.family) + ".woff2");
+    const newer = now && new Date(now).toISOString().slice(0, 10);
+    if (newer && newer > built) {
+      lines.push(t("newerBuild", newer, built));
+      bad = true;
+    }
   }
-  showFontInfo(lines.join("\n"), !local && !dated);
+  showFontInfo(lines.join("\n"), bad);
 }
 
 let current; // { name, font, sha, css }
@@ -82,7 +107,7 @@ async function useFont(name, bytes) {
   document.fonts.add(await new FontFace(css, bytes).load());
   $("sandbox").style.fontFamily = css;
   current = { name, font: loadFont(hb, bytes), sha, css };
-  describeFont(current);
+  await describeFont(current);
   // The deck remembers which build converted it; warn when it differs.
   const rec = settings()?.get("wingFont");
   say(rec && rec.name === name && rec.sha !== sha

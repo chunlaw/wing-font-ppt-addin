@@ -94,6 +94,44 @@ export async function run(reportUrl) {
     await select("setup", (tr) => tr.getSubstring(0, RAW.length));
     await read("setup");
 
+    // One-off case (?case=<text>): put that text in a box of its own in the
+    // wing font, convert it, and report. For reproducing a user's report.
+    if (p.get("case")) {
+      const TEXT = p.get("case");
+      let id2;
+      await PowerPoint.run(async (ctx) => {
+        const shape = ctx.presentation.slides.getItemAt(0).shapes.addTextBox(TEXT, { left: 30, top: 360, width: 660, height: 150 });
+        shape.textFrame.textRange.font.name = family;
+        shape.textFrame.textRange.font.size = 44;
+        shape.load("id");
+        await ctx.sync();
+        id2 = shape.id;
+      });
+      const tr2 = (ctx) => ctx.presentation.slides.getItemAt(0).shapes.getItem(id2).textFrame.textRange;
+      const text2 = async () => {
+        let v;
+        await PowerPoint.run(async (ctx) => {
+          const r = tr2(ctx);
+          r.load("text");
+          await ctx.sync();
+          v = cps(r.text);
+        });
+        return v;
+      };
+      await PowerPoint.run(async (ctx) => {
+        tr2(ctx).getSubstring(0, TEXT.length).setSelected();
+        await ctx.sync();
+      });
+      await wait(3500);
+      log.case = { before: await text2(), rows: [...document.querySelectorAll("#variants .row")].map((r) => r.children.length) };
+      $("convert").click();
+      log.case.status = await settle();
+      log.case.after = await text2();
+      log.case.fontinfo = $("fontinfo").textContent;
+      log.done = "case";
+      return send();
+    }
+
     // Mixed-font matrix (?mixed=1): in a text box of its own, give part of
     // the text another font in many ways and record what the host reports
     // and whether the pane's warning agrees with it.

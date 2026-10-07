@@ -170,7 +170,9 @@ export function loadFont(hb, bytes) {
   // NameID 5, e.g. "Version 2.004; modified by Wing Font 2026-10-05".
   const version = face.getName(5, "en") || "";
 
-  return { convert, variants, shape, cmapOnly, version };
+  const family = face.getName(1, "en") || "";
+
+  return { convert, variants, shape, cmapOnly, version, family };
 }
 
 /** Undo: delete IVS selectors and BMP PUA mark carriers (lossy — see README). */
