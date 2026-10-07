@@ -141,6 +141,19 @@ $("file").onchange = async () => {
   await useFont(name, bytes).catch((e) => say(e.message, true));
 };
 
+// Way out when the pane holds on to the wrong font: drop every downloaded
+// or picked font file and every remembered "this family → that font"
+// choice, so the next action starts from the selection's own font again.
+$("forget").onclick = async () => {
+  await globalThis.caches?.delete("wing-fonts");
+  for (const key of Object.keys(localStorage)) if (key.startsWith("font:")) localStorage.removeItem(key);
+  current = null;
+  $("font").value = "";
+  $("file").value = "";
+  showFontInfo("");
+  say(t("forgotten"));
+};
+
 // ── Host adapters ────────────────────────────────────────────────────
 // withSelection(fn, wholeIfCaret): fn(text, family) → [{ start, end, replacement }];
 // the adapter applies the edits back-to-front so offsets stay valid and
