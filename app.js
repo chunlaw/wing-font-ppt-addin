@@ -1,5 +1,5 @@
 import * as hb from "./vendor/harfbuzzjs/index.mjs";
-import { applyChanges, loadFont, stripChanges } from "./convert.js";
+import { applyChanges, clusters, loadFont, stripChanges } from "./convert.js";
 import { setLanguage, t } from "./i18n.js";
 
 const CDN = "https://wing-font.chunlaw.io/fonts/";
@@ -94,7 +94,10 @@ async function useFont(name, bytes) {
 // Manual choice wins, remembered per document family name.
 const overrideKey = (family) => "font:" + (family || "");
 function fontFor(family) {
-  const name = $("font").value.trim() || localStorage.getItem(overrideKey(family)) || family;
+  // PowerPoint reports no font name when the selection mixes fonts (say, a
+  // title and a body, or text that is partly Latin-font). Keep using the
+  // font already loaded rather than refusing: it is shown in the Font card.
+  const name = $("font").value.trim() || localStorage.getItem(overrideKey(family)) || family || current?.name;
   if (!name) throw new Error(t("noFont"));
   if ($("font").value.trim()) localStorage.setItem(overrideKey(family), name);
   return useFont(name);
@@ -114,21 +117,50 @@ $("file").onchange = async () => {
 };
 
 // ── Host adapters ────────────────────────────────────────────────────
-// withSelection(fn): fn(text, family) → [{ start, end, replacement }];
+// withSelection(fn, wholeIfCaret): fn(text, family) → [{ start, end, replacement }];
 // the adapter applies the edits back-to-front so offsets stay valid and
 // untouched text keeps its formatting.
 
 const settings = () => globalThis.Office?.context?.document?.settings;
 
 const adapters = {
-  async powerpoint(fn) {
+  async powerpoint(fn, wholeIfCaret) {
+    // With only a caret in the text, getSelectedTextRange() does not return
+    // an empty range. Measured in PowerPoint 16 (API 1.8):
+    //   Windows — the word around the caret (銀行攞錢), caret position unknown;
+    //   Mac     — the single character right after the caret.
+    // The common API returns "" for a caret on both, which is how a caret
+    // is told apart from a real selection of the same text.
+    const caret = await new Promise((resolve) =>
+      Office.context.document.getSelectedDataAsync(Office.CoercionType.Text,
+        (r) => resolve(r.status === "succeeded" && r.value === "")));
     await PowerPoint.run(async (ctx) => {
       let ranges;
       try {
-        ranges = [ctx.presentation.getSelectedTextRange()];
-        ranges[0].load("text");
-        ranges[0].font.load("name");
+        let r = ctx.presentation.getSelectedTextRange();
+        if (caret) {
+          const all = r.getParentTextFrame().textRange;
+          if (wholeIfCaret) {
+            r = all; // Convert / Restore: the whole text box
+          } else {
+            // Picker: if only one character came back (Mac), also offer the
+            // one before the caret — that's the one just typed.
+            r.load("start,length");
+            all.load("text");
+            await ctx.sync();
+            const cs = clusters(all.text);
+            const i = cs.findIndex((c) => c.start <= r.start && r.start < c.end);
+            if (i >= 0 && r.length <= cs[i].end - cs[i].start) {
+              const prev = cs[i - 1];
+              const first = prev && !/[\r\n\v]/.test(prev.char) ? prev : cs[i];
+              r = all.getSubstring(first.start, cs[i].end - first.start);
+            }
+          }
+        }
+        r.load("text");
+        r.font.load("name");
         await ctx.sync();
+        ranges = [r];
       } catch {
         // No text selection: fall back to whole selected text boxes.
         const shapes = ctx.presentation.getSelectedShapes();
@@ -139,7 +171,7 @@ const adapters = {
         await ctx.sync();
       }
       for (const r of ranges) {
-        for (const c of (await fn(r.text, r.font.name)).reverse()) {
+        for (const c of (await fn(r.text, r.font.name || "")).reverse()) {
           r.getSubstring(c.start, c.end - c.start).text = c.replacement;
         }
       }
@@ -172,16 +204,26 @@ let withSelection = adapters.standalone;
 // Actions run one at a time, in order. A click must never be dropped just
 // because a picker refresh (fired by every selection change) is in flight.
 let queue = Promise.resolve();
-const run = (fn, quiet = false) =>
+// `wholeIfCaret`: with just a caret in the text, act on the whole text box
+// (Convert, Restore) rather than on the word around the caret (the picker).
+const run = (fn, { quiet = false, wholeIfCaret = false } = {}) =>
   (queue = queue
-    .then(() => withSelection(fn))
+    .then(() => withSelection(fn, wholeIfCaret))
     .catch((e) => quiet || say(e.message || String(e), true)));
 
 // ── Actions ──────────────────────────────────────────────────────────
 
+// PowerPoint reports no font name ("" here) when the selected text mixes
+// fonts; other hosts pass null because they can't tell. Conversion then
+// uses one font for all of it, so say so under the Convert button.
+const noteFonts = (text, family) => {
+  $("mixed").hidden = !(text && family === "");
+};
+
 $("convert").onclick = () =>
   run(async (text, family) => {
     if (!text) throw new Error(t("noSelection"));
+    noteFonts(text, family);
     const f = await fontFor(family);
     const r = f.font.convert(text);
     if (!r.cmapOk) throw new Error(t("selfCheckFailed"));
@@ -196,40 +238,59 @@ $("convert").onclick = () =>
     }
     say(notes.join("\n"), r.failed.length > 0 || !r.gsubOk);
     return r.changes;
-  });
+  }, { wholeIfCaret: true });
 
 $("restore").onclick = () =>
   run(async (text) => {
     const changes = stripChanges(text);
     say(t("restored", changes.length));
     return changes;
-  });
+  }, { wholeIfCaret: true });
 
-// Picker: when exactly one character is selected, draw each of its cmap-14
-// variants with the loaded font itself; clicking one swaps the selection.
-const ONE_CHAR = /^([^\u{E000}-\u{F8FF}\u{E0100}-\u{E01EF}])[\u{E000}-\u{F8FF}\u{E0100}-\u{E01EF}]*$/u;
+// Picker: one row per character of a short selection, each reading drawn
+// with the loaded font itself; clicking one swaps that character. A bare
+// caret counts as selecting the word around it (see the adapter), so
+// putting the cursor in a word lists the readings of each of its characters.
+const PICKER_MAX = 12;
 let pickerQueued = false; // collapse bursts of selection-change events
 async function refreshPicker() {
   if (pickerQueued) return;
   pickerQueued = true;
-  const box = $("variants");
+  let rows = []; // stays empty if the selection can't be read at all
+  let hint = t("pickEmpty");
   await run(async (text, family) => {
     pickerQueued = false;
-    const char = text.match(ONE_CHAR)?.[1];
-    const f = char && (await fontFor(family).catch(() => null));
-    const seen = new Set();
-    const list = f ? f.font.variants(char).filter((v) => !seen.has(v.gid) && seen.add(v.gid)) : [];
-    box.replaceChildren(...(list.length > 1 ? list : []).map((v) => {
-      const b = document.createElement("button");
-      b.textContent = v.text;
-      b.setAttribute("aria-pressed", String(v.text === text)); // the one in the document now
-      b.style.fontFamily = f.css;
-      b.onclick = () => run(async (t) => [{ start: 0, end: t.length, replacement: v.text }]);
-      return b;
-    }));
+    noteFonts(text, family);
+    const chars = clusters(text).filter((c) => c.char.trim());
+    if (!chars.length) return [];
+    if (chars.length > PICKER_MAX) return (hint = t("pickTooMany", PICKER_MAX)), [];
+    const f = await fontFor(family).catch(() => null);
+    if (!f) return [];
+    for (const c of chars) {
+      const seen = new Set();
+      const list = f.font.variants(c.char).filter((v) => !seen.has(v.gid) && seen.add(v.gid));
+      if (list.length < 2) continue;
+      const row = document.createElement("div");
+      row.className = "row";
+      row.append(...list.map((v) => {
+        const b = document.createElement("button");
+        b.textContent = v.text;
+        b.setAttribute("aria-pressed", String(v.text === c.text)); // the one in the document now
+        b.style.fontFamily = f.css;
+        // Swap only if the selection still holds the same text: never
+        // overwrite something else the user selected in the meantime.
+        b.onclick = () => run(async (now) =>
+          now === text ? [{ start: c.start, end: c.end, replacement: v.text }] : []).then(refreshPicker);
+        return b;
+      }));
+      rows.push(row);
+    }
+    if (!rows.length) hint = t("pickNone");
     return [];
-  }, true); // quiet: selecting a picture is not an error worth showing
+  }, { quiet: true }); // quiet: selecting a picture is not an error worth showing
   pickerQueued = false;
+  $("variants").dataset.empty = hint;
+  $("variants").replaceChildren(...rows);
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────

@@ -68,13 +68,19 @@ export function loadFont(hb, bytes) {
     return !e || (!e.width && !e.height);
   };
 
+  const NO_LOCL = [new hb.Feature("locl", 0)];
+
   const shape = (text) => {
     const buf = new hb.Buffer();
     buf.addText(text);
     buf.guessSegmentProperties();
     // Drop ZWJ / unused selectors instead of turning them into space glyphs.
     buf.setFlags(hb.BufferFlag.REMOVE_DEFAULT_IGNORABLES);
-    hb.shape(font, buf);
+    // No `locl`: it is meant to follow the text's language, which we never
+    // know. Left on, a line that starts with Latin letters is shaped as
+    // Latin script and the base font's locl swaps its ASCII digits for
+    // cmap-less forms, which would be reported as unconvertible.
+    hb.shape(font, buf, NO_LOCL);
     return buf
       .getGlyphInfos()
       .map((g) => ({ gid: g.codepoint, cluster: g.cluster }))
@@ -178,3 +184,16 @@ export const stripChanges = (text) =>
 /** Apply non-overlapping, ascending { start, end, replacement } edits. */
 export const applyChanges = (text, changes) =>
   changes.reduceRight((t, c) => t.slice(0, c.start) + c.replacement + t.slice(c.end), text);
+
+/**
+ * Split text into characters as a reader sees them: a base character with
+ * the selectors / mark carriers that follow it. [{ char, text, start, end }]
+ * with UTF-16 offsets.
+ */
+export const clusters = (text) =>
+  [...text.matchAll(/([^\u{E000}-\u{F8FF}\u{E0100}-\u{E01EF}])[\u{E000}-\u{F8FF}\u{E0100}-\u{E01EF}]*/gu)].map((m) => ({
+    char: m[1],
+    text: m[0],
+    start: m.index,
+    end: m.index + m[0].length,
+  }));

@@ -44,13 +44,15 @@
     .button input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 
     /* Reading picker */
-    #variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
-    #variants:empty::before { content: attr(data-empty); color: var(--muted); grid-column: 1 / -1; font-size: 12px; }
+    #variants .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+    #variants .row + .row { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+    #variants:empty::before { content: attr(data-empty); color: var(--muted); font-size: 12px; }
     #variants button { font-size: 34px; line-height: 1.7; padding: 2px 0 0; }
     #variants button[aria-pressed=true] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 
     #status { margin: 12px 0 0; white-space: pre-wrap; font-size: 12px; color: var(--muted); }
     #status.bad { color: var(--warn-fg); }
+    #mixed { margin: 10px 0 0; padding: 6px 10px; border-radius: 6px; font-size: 12px; background: var(--warn-bg); color: var(--warn-fg); }
     /* Standalone sandbox: ccmp off imitates PowerPoint's lack of GSUB. */
     #sandbox { width: 100%; height: 7em; margin-top: 12px; padding: 6px; font-size: 28px; line-height: 1.9; color: var(--fg);
                background: var(--bg); border: 1px dashed var(--line); border-radius: 4px; font-feature-settings: "ccmp" 0; }
@@ -61,6 +63,7 @@
     <button id="convert" data-i18n="convert"></button>
     <button id="restore" data-i18n="restore" data-i18n-attr="title:restoreTip"></button>
   </div>
+  <p id="mixed" role="status" data-i18n="mixedFonts" hidden></p>
   <p id="status" role="status">…</p>
 
   <h2 data-i18n="pickHeading"></h2>

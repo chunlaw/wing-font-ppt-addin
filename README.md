@@ -7,8 +7,10 @@ PowerPoint does not apply GSUB to Chinese text, so `行２`, `行０ｚａａ１
 ## Usage
 
 1. Select some text (or a whole text box) and press **Convert selection**.
-2. Select a single character and the pane lists every reading of it; click one to switch.
+2. Select a few characters, or just put the cursor in the text, and the pane lists the readings of each character, one row per character; click one to switch. With only a cursor, PowerPoint on Windows reports the word around it and PowerPoint on Mac the character after it (the pane adds the one before).
 3. **Restore** deletes the IVS selectors and BMP PUA (U+E000–F8FF) mark carriers in the selection. It does not bring back the `行２` syntax.
+
+If the selection mixes fonts, a warning appears under the Convert button: everything is converted with the one font shown in the Font card.
 
 The pane follows the Office display language: Traditional Chinese for any Chinese locale, English otherwise.
 

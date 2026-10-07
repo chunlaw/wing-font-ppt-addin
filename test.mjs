@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import * as hb from "harfbuzzjs";
-import { applyChanges, loadFont, stripChanges } from "./convert.js";
+import { applyChanges, clusters, loadFont, stripChanges } from "./convert.js";
 
 const VS17 = "\u{E0100}", VS18 = "\u{E0101}", VS19 = "\u{E0102}", BARE = "\u{E01EF}";
 const ZAA1 = "\u{E000}", HONG2 = "\u{E000}\u{E0100}";
@@ -31,6 +31,10 @@ assert.equal(conv("行" + VS19), "行" + VS19); // explicit default selector: le
 assert.equal(conv("行" + VS17), "行" + VS17); // idempotent
 assert.equal(conv("abc 行２\r一行３\v銀"), `abc 行${VS18}\r一行${VS17}\v銀`);
 assert.equal(conv("😀行２"), "😀行" + VS18); // not in font: left alone
+// A line that starts with Latin letters must not turn its digits into
+// "no cmap route" failures (the base font's locl, applied under Latin script).
+assert.equal(conv("Hello 行２ 123"), "Hello 行" + VS18 + " 123");
+assert.equal(conv("a1"), "a1");
 
 // Offsets are UTF-16 code units into the original text.
 assert.deepEqual(f.convert("😀行２").changes, [{ start: 2, end: 4, replacement: "行" + VS18 }]);
@@ -50,5 +54,11 @@ const woff2 = createRequire(import.meta.url)("wawoff2/build/decompress_binding.j
 await new Promise((r) => (woff2.calledRun ? r() : (woff2.onRuntimeInitialized = r)));
 const sfnt = woff2.decompress(readFileSync("test/WingSmall.woff2"));
 assert.equal(loadFont(hb, sfnt).convert("行２").text, "行" + VS18);
+
+// Characters as a reader sees them, with UTF-16 offsets.
+assert.deepEqual(
+  clusters("太" + VS17 + "😀行" + BARE + ZAA1).map((c) => [c.char, c.start, c.end]),
+  [["太", 0, 3], ["😀", 3, 5], ["行", 5, 9]],
+);
 
 console.log("ok");
