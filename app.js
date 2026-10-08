@@ -258,7 +258,7 @@ const noteFonts = (text, family) => {
   $("mixed").hidden = !(text && family === "");
 };
 
-$("convert").onclick = () =>
+const convertSelection = () =>
   run(async (text, family) => {
     if (!text) throw new Error(t("noSelection"));
     noteFonts(text, family);
@@ -277,6 +277,18 @@ $("convert").onclick = () =>
     say(notes.join("\n"), r.failed.length > 0 || !r.gsubOk);
     return r.changes;
   }, { wholeIfCaret: true });
+$("convert").onclick = convertSelection;
+
+// The same conversion as a command: ribbon button, right-click menu and
+// keyboard shortcut all end up here (manifest.xml, shortcuts.json), with
+// the pane possibly closed. Open it only when there is something to read:
+// an error, a warning, or a font that needs attention.
+async function convertCommand(event) {
+  await convertSelection();
+  const attention = [$("status"), $("fontinfo")].some((el) => el.className === "bad") || !$("mixed").hidden;
+  if (attention) await globalThis.Office?.addin?.showAsTaskpane?.().catch(() => {});
+  event?.completed?.();
+}
 
 $("restore").onclick = () =>
   run(async (text) => {
@@ -345,6 +357,7 @@ if (info.host === "PowerPoint" && Office.context.requirements.isSetSupported("Po
 }
 if (info.host) {
   Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged, refreshPicker);
+  Office.actions?.associate?.("convertSelection", convertCommand);
 } else {
   $("sandbox").hidden = false;
   $("sandbox").onselect = $("sandbox").onkeyup = $("sandbox").onmouseup = refreshPicker;
@@ -353,4 +366,4 @@ const params = new URLSearchParams(location.search);
 $("font").value = params.get("font") ?? "";
 say(t("ready"));
 // Development only: test/ isn't part of the published site.
-if (params.get("selftest")) (await import("./test/office/selftest.js")).run(params.get("selftest"));
+if (params.get("selftest")) (await import("./test/office/selftest.js")).run(params.get("selftest"), { convertCommand });

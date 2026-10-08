@@ -19,7 +19,7 @@ async function settle() {
   return prev;
 }
 
-export async function run(reportUrl) {
+export async function run(reportUrl, hooks = {}) {
   const p = new URLSearchParams(location.search);
   const family = p.get("family");
   const RAW = "我去銀行攞錢，行路返屋企。行２ 行３ 行０ 行０ｚａａ１ 😀行２";
@@ -93,6 +93,39 @@ export async function run(reportUrl) {
     });
     await select("setup", (tr) => tr.getSubstring(0, RAW.length));
     await read("setup");
+
+    // Commands (?cmd=direct | ?cmd=wait): with the text box selected and
+    // the pane hidden, either call the command handler the way Office does,
+    // or wait for something outside (a keyboard shortcut, a ribbon click)
+    // to trigger it; then report what happened to the text.
+    if (p.get("cmd")) {
+      const req = (set, v) => Office.context.requirements.isSetSupported(set, v);
+      log.cmd = {
+        mode: p.get("cmd"),
+        officeVersion: Office.context.diagnostics?.version,
+        sharedRuntime: req("SharedRuntime", "1.1"),
+        keyboardShortcuts: req("KeyboardShortcuts", "1.1"),
+        associate: typeof Office.actions?.associate,
+      };
+      log.cmd.shortcuts = await Office.actions?.getShortcuts?.().catch((e) => "ERR " + e.message);
+      await select("cmd", (tr) => tr.getSubstring(0, RAW.length));
+      await read("cmdBefore");
+      log.cmd.hidden = await Office.addin?.hide?.().then(() => true, (e) => "ERR " + e.message);
+      await wait(1500);
+      if (p.get("cmd") === "direct") {
+        await hooks.convertCommand({ completed: () => (log.cmd.completedCalled = true) });
+      } else {
+        const before = log.steps.cmdBefore.text;
+        for (let i = 0; i < 120; i++) {
+          await wait(500);
+          await read("cmdAfter");
+          if (log.steps.cmdAfter.text !== before) break;
+        }
+      }
+      await read("cmdAfter");
+      log.done = "cmd";
+      return send();
+    }
 
     // One-off case (?case=<text>): put that text in a box of its own in the
     // wing font, convert it, and report. For reproducing a user's report.

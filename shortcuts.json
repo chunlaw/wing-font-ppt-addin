@@ -1,0 +1,18 @@
+{
+  "actions": [
+    {
+      "id": "convertSelection",
+      "type": "ExecuteFunction",
+      "name": "Convert selection"
+    }
+  ],
+  "shortcuts": [
+    {
+      "action": "convertSelection",
+      "key": {
+        "default": "Ctrl+Alt+Shift+W",
+        "mac": "Command+Option+Shift+W"
+      }
+    }
+  ]
+}

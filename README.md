@@ -10,6 +10,8 @@ PowerPoint does not apply GSUB to Chinese text, so `行２`, `行０ｚａａ１
 2. Select a few characters, or just put the cursor in the text, and the pane lists the readings of each character, one row per character; click one to switch. With only a cursor, PowerPoint on Windows reports the word around it and PowerPoint on Mac the character after it (the pane adds the one before).
 3. **Restore** deletes the IVS selectors and BMP PUA (U+E000–F8FF) mark carriers in the selection. It does not bring back the `行２` syntax.
 
+Convert is also available without opening the pane: the **Convert** button next to **Wing Font** on the Home tab, **Convert** in the right-click menu of selected text, and the keyboard shortcut Ctrl+Alt+Shift+W (Mac: Cmd+Option+Shift+W; needs PowerPoint 2601 on Windows or 16.105.2 on Mac, see `shortcuts.json`). The pane opens by itself only when there is something to read, such as a warning.
+
 If the selection mixes fonts, a warning appears under the Convert button: everything is converted with the one font shown in the Font card.
 
 The pane follows the Office display language: Traditional Chinese for any Chinese locale, English otherwise.
@@ -51,6 +53,7 @@ Then open <http://localhost:8765/index.html?font=test/WingSmall.woff2>; add `&la
 | `convert.js` | The core: HarfBuzz shaping → reverse cmap lookup → self-check. No DOM or Office dependency |
 | `i18n.js` | UI strings: Traditional Chinese and English |
 | `app.js` | The pane: font loading and caching, reading and writing the selection through Office.js, the reading picker |
+| `shortcuts.json` | Keyboard shortcut for the Convert command, referenced from `manifest.xml` |
 | `build.mjs` | Copies `vendor/`, assembles `dist/` |
 | `vendor/` (generated) | [harfbuzzjs](https://github.com/harfbuzz/harfbuzzjs) (shaping) and [wawoff2](https://github.com/fontello/wawoff2) (woff2 decompression); versions are pinned in `package.json` |
 | `test/office/` | End-to-end self-test that runs inside real PowerPoint: open the pane with `?selftest=/report` (served by `serve.py`) and it adds a text box to slide 1, drives Convert / the picker / Restore, and posts what it read back |
@@ -59,7 +62,8 @@ Then open <http://localhost:8765/index.html?font=test/WingSmall.woff2>; add `&la
 
 ## Known limitations
 
-- The ribbon has a single button that opens the pane; Convert and Restore live inside the pane.
+- Restore and the reading picker live inside the pane only.
+- After `manifest.xml` changes (new buttons, shortcuts), users have to install the new manifest; updating the site is not enough.
 - Word, and PowerPoint without PowerPointApi 1.5, go through the common API: the whole selection is replaced at once, so mixed formatting inside it is flattened and the font cannot be detected automatically.
 - Word-level composites for non-CJK scripts (Arabic and others) have no cmap route yet.
 - Converted text is meant to stay in PowerPoint. Copied out into an app that runs GSUB, two things can go wrong (both accepted, not planned to fix):

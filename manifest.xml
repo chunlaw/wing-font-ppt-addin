@@ -5,7 +5,7 @@
            xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
            xsi:type="TaskPaneApp">
   <Id>d5d8f588-aede-4d00-b5f7-56c590a05af3</Id>
-  <Version>0.1.0.0</Version>
+  <Version>1.0.0.0</Version>
   <ProviderName>Wing Font</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Wing Font"/>
@@ -30,7 +30,13 @@
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Hosts>
       <Host xsi:type="Presentation">
+        <!-- One long-lived page serves the pane and the commands, so a
+             command finds HarfBuzz and the font already loaded. -->
+        <Runtimes>
+          <Runtime resid="Pane.Url" lifetime="long"/>
+        </Runtimes>
         <DesktopFormFactor>
+          <FunctionFile resid="Pane.Url"/>
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
               <Group id="WingFont.Ppt.Group">
@@ -56,8 +62,42 @@
                     <SourceLocation resid="Pane.Url"/>
                   </Action>
                 </Control>
+                <Control xsi:type="Button" id="WingFont.Ppt.Convert">
+                  <Label resid="Convert.Label"/>
+                  <Supertip>
+                    <Title resid="Convert.Label"/>
+                    <Description resid="Convert.Tip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16"/>
+                    <bt:Image size="32" resid="Icon.32"/>
+                    <bt:Image size="80" resid="Icon.80"/>
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>convertSelection</FunctionName>
+                  </Action>
+                </Control>
               </Group>
             </OfficeTab>
+          </ExtensionPoint>
+          <ExtensionPoint xsi:type="ContextMenu">
+            <OfficeMenu id="ContextMenuText">
+              <Control xsi:type="Button" id="WingFont.Ppt.ConvertMenu">
+                <Label resid="Convert.Label"/>
+                <Supertip>
+                  <Title resid="Convert.Label"/>
+                  <Description resid="Convert.Tip"/>
+                </Supertip>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16"/>
+                  <bt:Image size="32" resid="Icon.32"/>
+                  <bt:Image size="80" resid="Icon.80"/>
+                </Icon>
+                <Action xsi:type="ExecuteFunction">
+                  <FunctionName>convertSelection</FunctionName>
+                </Action>
+              </Control>
+            </OfficeMenu>
           </ExtensionPoint>
         </DesktopFormFactor>
       </Host>
@@ -105,12 +145,20 @@
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="Group.Label" DefaultValue="Wing Font"/>
+        <bt:String id="Convert.Label" DefaultValue="Convert">
+          <bt:Override Locale="zh-TW" Value="轉換注音"/>
+          <bt:Override Locale="zh-HK" Value="轉換注音"/>
+        </bt:String>
         <bt:String id="Open.Label" DefaultValue="Wing Font">
           <bt:Override Locale="zh-TW" Value="Wing Font 注音"/>
           <bt:Override Locale="zh-HK" Value="Wing Font 注音"/>
         </bt:String>
       </bt:ShortStrings>
       <bt:LongStrings>
+        <bt:String id="Convert.Tip" DefaultValue="Convert the selected text or text box so PowerPoint shows its Wing Font annotations. Shortcut: Ctrl+Alt+Shift+W (Mac: Cmd+Option+Shift+W).">
+          <bt:Override Locale="zh-TW" Value="轉換選取嘅文字或者文字方塊，令 PowerPoint 顯示到 Wing Font 注音。快捷鍵：Ctrl+Alt+Shift+W（Mac：Cmd+Option+Shift+W）。"/>
+          <bt:Override Locale="zh-HK" Value="轉換選取嘅文字或者文字方塊，令 PowerPoint 顯示到 Wing Font 注音。快捷鍵：Ctrl+Alt+Shift+W（Mac：Cmd+Option+Shift+W）。"/>
+        </bt:String>
         <bt:String id="Open.Tip" DefaultValue="Open the pane: convert the selection, pick readings, restore.">
           <bt:Override Locale="zh-TW" Value="開啟面板：轉換選取文字、揀讀音、還原。"/>
           <bt:Override Locale="zh-HK" Value="開啟面板：轉換選取文字、揀讀音、還原。"/>
@@ -118,4 +166,5 @@
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
+  <ExtendedOverrides Url="https://wing-font-ppt.chunlaw.io/shortcuts.json"/>
 </OfficeApp>
