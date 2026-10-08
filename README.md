@@ -25,7 +25,7 @@ The add-in cannot read the fonts installed on your computer: it converts with it
 The pane is a static site. On every push to `main`, [`.github/workflows/pages.yml`](.github/workflows/pages.yml) runs the tests, builds, and deploys to GitHub Pages (set Settings → Pages → Source to **GitHub Actions**). `manifest.xml` assumes the site is at `https://wing-font-ppt.chunlaw.io/`; search and replace that URL if you host it elsewhere.
 
 - **Mac**: copy `manifest.xml` to `~/Library/Containers/com.microsoft.Powerpoint/Data/Documents/wef/` (`com.microsoft.Word` for Word) and restart PowerPoint. **Wing Font** appears on the Home tab.
-- **Windows**: put `manifest.xml` in a shared folder, add that folder under Trust Center → Trusted Add-in Catalogs, then Insert → My Add-ins → Shared Folder.
+- **Windows**: put `manifest.xml` in a folder and share that folder (Properties → Sharing → Share). Under File → Options → Trust Center → Trust Center Settings → Trusted Add-in Catalogs, add the folder by its **network path** (`\\COMPUTER\Share`; a local path such as `C:\Users\…` is rejected with a message about `https://`), tick **Show in Menu**, and restart PowerPoint. Then Insert → My Add-ins → Shared Folder.
 - **Organisation (Microsoft 365)**: admin center → Settings → Integrated apps → Upload custom apps → upload `manifest.xml`.
 
 ## Development
