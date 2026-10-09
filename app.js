@@ -357,7 +357,7 @@ if (info.host === "PowerPoint" && Office.context.requirements.isSetSupported("Po
 }
 if (info.host) {
   Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged, refreshPicker);
-  Office.actions?.associate?.("convertSelection", convertCommand);
+  globalThis.wingFontCommandReady?.(convertCommand); // see the inline script in index.html
 } else {
   $("sandbox").hidden = false;
   $("sandbox").onselect = $("sandbox").onkeyup = $("sandbox").onmouseup = refreshPicker;

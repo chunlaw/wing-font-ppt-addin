@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wing Font</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script>
+    // Commands must be associated as soon as the page loads, the way
+    // Microsoft's samples do it; app.js is a module that finishes loading
+    // (WASM, Office.onReady) later. So register a forwarder now and let
+    // app.js supply the real handler.
+    var wingFontCommand = new Promise(function (resolve) { window.wingFontCommandReady = resolve; });
+    if (window.Office && Office.actions && Office.actions.associate) {
+      Office.actions.associate("convertSelection", function (event) {
+        return wingFontCommand.then(function (run) { return run(event); });
+      });
+    }
+  </script>
   <style>
     :root {
       color-scheme: light dark;
