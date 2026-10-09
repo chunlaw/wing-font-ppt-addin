@@ -11,7 +11,7 @@
       "action": "convertSelection",
       "key": {
         "default": "Ctrl+Alt+Shift+W",
-        "mac": "Command+Option+Shift+W"
+        "mac": "Command+Alt+Shift+W"
       }
     }
   ]
