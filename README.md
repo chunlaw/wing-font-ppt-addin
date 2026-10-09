@@ -64,6 +64,8 @@ Then open <http://localhost:8765/index.html?font=test/WingSmall.woff2>; add `&la
 
 - Restore and the reading picker live inside the pane only.
 - After `manifest.xml` changes (new buttons, shortcuts), users have to install the new manifest; updating the site is not enough.
+- PowerPoint for Mac caches `shortcuts.json` and keeps using the old copy after the site is updated. To pick up a changed shortcut: quit PowerPoint, delete the file in `~/Library/Containers/com.microsoft.Powerpoint/Data/Library/Application Support/Microsoft/Office/16.0/Wef/*/*/Manifests/` (keep the folders), reopen PowerPoint and insert the add-in again from Home → Add-ins. The shortcut does nothing until the add-in has been inserted. The copy PowerPoint is using is in the `ExtendedManifest` folder next to it.
+- In `shortcuts.json`, write the Mac Option key as `Alt`; `Option` is accepted but the shortcut never fires.
 - Word, and PowerPoint without PowerPointApi 1.5, go through the common API: the whole selection is replaced at once, so mixed formatting inside it is flattened and the font cannot be detected automatically.
 - Word-level composites for non-CJK scripts (Arabic and others) have no cmap route yet.
 - Converted text is meant to stay in PowerPoint. Copied out into an app that runs GSUB, two things can go wrong (both accepted, not planned to fix):
