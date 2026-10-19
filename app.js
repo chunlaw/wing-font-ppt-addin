@@ -14,10 +14,13 @@ const say = (msg, bad = false) => {
 // (anything with a slash), or "local:<file name>" for a user-picked file.
 // Everything is kept in the Cache API so it's downloaded / picked once.
 
+// Published files are named after the family without spaces
+// ("Wing Sans Yue Jyutping" → WingSansYueJyutping.woff2).
+const cdnUrl = (family) => CDN + encodeURIComponent(family.replace(/ /g, "")) + ".woff2";
 const cacheKey = (name) =>
   name.startsWith("local:") ? "local/" + encodeURIComponent(name.slice(6))
   : name.includes("/") ? name
-  : CDN + encodeURIComponent(name) + ".woff2";
+  : cdnUrl(name);
 
 let woff2; // wawoff2's emscripten module, loaded on first use
 const decompress = async (bytes) => {
@@ -76,20 +79,22 @@ const showFontInfo = (msg, bad = false) => {
 };
 async function describeFont({ name, font }) {
   const local = name.startsWith("local:");
-  const built = font.version.match(/Wing Font (\d{4}-\d{2}-\d{2})/)?.[1];
+  // Site builds carry a build date; release builds (Wing Sans) a "Version X.YYY".
+  const date = font.version.match(/Wing Font (\d{4}-\d{2}-\d{2})/)?.[1];
+  const built = date ?? font.version.match(/^Version (\d+\.\d{3})$/)?.[1];
   const lines = [t("infoFont", local ? t("infoLocal", name.slice(6)) : name), t("infoVersion", font.version)];
   let bad = false;
   if (!local) {
     lines.push(built ? t("checkVersion") : t("noBuildDate") + "\n" + t("loadLocal"));
     bad = !built;
-  } else if (built && font.family) {
+  } else if (date && font.family) {
     // A picked file is remembered under its file name. If the official font
     // of that family has been republished since this copy was built, the
     // user may well have installed the newer one: say so.
-    const now = await published(CDN + encodeURIComponent(font.family) + ".woff2");
+    const now = await published(cdnUrl(font.family));
     const newer = now && new Date(now).toISOString().slice(0, 10);
-    if (newer && newer > built) {
-      lines.push(t("newerBuild", newer, built));
+    if (newer && newer > date) {
+      lines.push(t("newerBuild", newer, date));
       bad = true;
     }
   }
