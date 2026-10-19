@@ -5,6 +5,7 @@ const STRINGS = {
   zh: {
     convert: "轉換選取文字",
     restore: "還原",
+    skippedFonts: (names) => `用以下字型嘅文字冇轉換（唔係 Wing Font 字型）：${names}`,
     shortcut: (k) => `快捷鍵：${k}（唔使開面板都可以轉換）`,
     restoreTip: "刪走選取範圍內嘅讀音同自訂注音",
     pickHeading: "揀讀音",
@@ -49,6 +50,7 @@ const STRINGS = {
   en: {
     convert: "Convert selection",
     restore: "Restore",
+    skippedFonts: (names) => `Text in these fonts was left as is (not Wing Font fonts): ${names}`,
     shortcut: (k) => `Shortcut: ${k} (converts without opening this pane)`,
     restoreTip: "Remove readings and custom annotations from the selection",
     pickHeading: "Pick a reading",

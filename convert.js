@@ -183,6 +183,20 @@ export const stripChanges = (text) =>
     replacement: "",
   }));
 
+/**
+ * Reading syntax typed in half width (行2, 行0zaa1): digits/letters right after
+ * a Han character (or its selector) become full width (行２, 行０ｚａａ１).
+ * Other Latin text is left alone. One change per character, same length, so
+ * offsets into the text stay valid.
+ */
+export const fullWidthChanges = (text) =>
+  [...text.matchAll(/(?<=[\p{Script=Han}\u{E0100}-\u{E01EF}])[0-9][0-9A-Za-z]*/gu)].flatMap((m) =>
+    [...m[0]].map((c, i) => ({
+      start: m.index + i,
+      end: m.index + i + 1,
+      replacement: String.fromCharCode(c.charCodeAt(0) + 0xfee0),
+    })));
+
 /** Apply non-overlapping, ascending { start, end, replacement } edits. */
 export const applyChanges = (text, changes) =>
   changes.reduceRight((t, c) => t.slice(0, c.start) + c.replacement + t.slice(c.end), text);

@@ -1,5 +1,5 @@
 import * as hb from "./vendor/harfbuzzjs/index.mjs";
-import { applyChanges, clusters, loadFont, stripChanges } from "./convert.js";
+import { applyChanges, clusters, fullWidthChanges, loadFont, stripChanges } from "./convert.js";
 import { setLanguage, t } from "./i18n.js";
 
 const CDN = "https://wing-font.chunlaw.io/fonts/";
@@ -214,7 +214,24 @@ const adapters = {
         await ctx.sync();
       }
       for (const r of ranges) {
-        for (const c of (await fn(r.text, r.font.name || "")).reverse()) {
+        // A text box often mixes fonts (Latin text in Aptos, Chinese in a Wing
+        // font), and PowerPoint for Mac then reports the first character's
+        // font for the whole range instead of "". Ask per character instead.
+        // shortcut: one proxy per character in one sync, fine for slide-sized text.
+        let runs;
+        if (wholeIfCaret) {
+          const cs = clusters(r.text);
+          const fonts = cs.map((c) => r.getSubstring(c.start, c.end - c.start).font);
+          for (const f of fonts) f.load("name");
+          await ctx.sync();
+          runs = [];
+          cs.forEach((c, i) => {
+            const name = fonts[i].name || "", last = runs.at(-1);
+            if (last?.name === name) last.end = c.end;
+            else runs.push({ start: c.start, end: c.end, name });
+          });
+        }
+        for (const c of (await fn(r.text, r.font.name || "", runs)).reverse()) {
           r.getSubstring(c.start, c.end - c.start).text = c.replacement;
         }
       }
@@ -264,23 +281,50 @@ const noteFonts = (text, family) => {
 };
 
 const convertSelection = () =>
-  run(async (text, family) => {
+  run(async (text, family, runs) => {
     if (!text) throw new Error(t("noSelection"));
-    noteFonts(text, family);
-    const f = await fontFor(family);
-    const r = f.font.convert(text);
-    if (!r.cmapOk) throw new Error(t("selfCheckFailed"));
-    const notes = [t("converted", r.changes.length)];
-    if (r.failed.length) {
-      notes.push(t("failed", r.failed.length, r.failed.map((x) => t("quote", text.slice(x.start, x.end))).join("")));
+    const many = runs?.length > 1;
+    runs ??= [{ start: 0, end: text.length, name: family }];
+    noteFonts(text, many ? null : family);
+    // Each run converts with its own font. With several fonts, Latin-only runs
+    // are left alone and a font that can't be loaded (Aptos, ...) is skipped.
+    const changes = [], failed = [], skipped = new Set();
+    let gsubOk = true, f;
+    for (const seg of runs) {
+      const part = text.slice(seg.start, seg.end);
+      if (many && (skipped.has(seg.name) || /^[\x00-\x7F\u2000-\u206F]*$/.test(part))) continue;
+      try {
+        f = await fontFor(seg.name);
+      } catch (e) {
+        if (!many) throw e;
+        skipped.add(seg.name);
+        continue;
+      }
+      // Half-width syntax (行2) becomes full width (行２) first. Same length, so
+      // the conversion's offsets still fit; full-width characters inside a
+      // converted span are already part of its replacement.
+      const fw = fullWidthChanges(part);
+      const r = f.font.convert(applyChanges(part, fw));
+      if (!r.cmapOk) throw new Error(t("selfCheckFailed"));
+      gsubOk &&= r.gsubOk;
+      const own = fw.filter((w) => !r.changes.some((c) => c.start <= w.start && w.end <= c.end));
+      const shift = (x) => ({ ...x, start: x.start + seg.start, end: x.end + seg.start });
+      changes.push(...[...r.changes, ...own].sort((x, y) => x.start - y.start).map(shift));
+      failed.push(...r.failed.map(shift));
     }
-    if (!r.gsubOk) notes.push(t("gsubWarning"));
-    if (r.changes.length && settings()) {
+    if (skipped.size && f) await describeFont(f); // the card showed the skipped font's 404
+    const notes = [t("converted", changes.length)];
+    if (failed.length) {
+      notes.push(t("failed", failed.length, failed.map((x) => t("quote", text.slice(x.start, x.end))).join("")));
+    }
+    if (skipped.size) notes.push(t("skippedFonts", [...skipped].join("、")));
+    if (!gsubOk) notes.push(t("gsubWarning"));
+    if (changes.length && settings()) {
       settings().set("wingFont", { name: f.name, sha: f.sha });
       settings().saveAsync();
     }
-    say(notes.join("\n"), r.failed.length > 0 || !r.gsubOk);
-    return r.changes;
+    say(notes.join("\n"), failed.length > 0 || !gsubOk);
+    return changes;
   }, { wholeIfCaret: true });
 $("convert").onclick = convertSelection;
 

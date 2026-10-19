@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import * as hb from "harfbuzzjs";
-import { applyChanges, clusters, loadFont, stripChanges } from "./convert.js";
+import { applyChanges, clusters, fullWidthChanges, loadFont, stripChanges } from "./convert.js";
 
 const VS17 = "\u{E0100}", VS18 = "\u{E0101}", VS19 = "\u{E0102}", BARE = "\u{E01EF}";
 const ZAA1 = "\u{E000}", HONG2 = "\u{E000}\u{E0100}";
@@ -62,3 +62,14 @@ assert.deepEqual(
 );
 
 console.log("ok");
+
+// Half-width reading syntax after a Han character → full width; other Latin stays.
+const hw = "行0zaa1 行2 mui1 (ze2) 2026年 abc";
+assert.equal(applyChanges(hw, fullWidthChanges(hw)), "行０ｚａａ１ 行２ mui1 (ze2) 2026年 abc");
+assert.equal(applyChanges("行" + VS17 + "3", fullWidthChanges("行" + VS17 + "3")), "行" + VS17 + "３");
+// Convert's merge: full-width syntax then convert gives the same as typing it in full width.
+const typed = "Hi 行2行0zaa1x";
+const fwc = fullWidthChanges(typed);
+const cr = f.convert(applyChanges(typed, fwc));
+const own = fwc.filter((w) => !cr.changes.some((c) => c.start <= w.start && w.end <= c.end));
+assert.equal(applyChanges(typed, [...cr.changes, ...own].sort((x, y) => x.start - y.start)), conv("Hi 行２行０ｚａａ１ｘ"));
