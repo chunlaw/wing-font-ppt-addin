@@ -363,6 +363,9 @@ if (info.host === "PowerPoint" && Office.context.requirements.isSetSupported("Po
 if (info.host) {
   Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged, refreshPicker);
   globalThis.wingFontCommandReady?.(convertCommand); // see the inline script in index.html
+  // Same keys as shortcuts.json.
+  $("shortcut").textContent = t("shortcut", Office.context.diagnostics?.platform === "Mac" ? "⌘⌥⇧W" : "Ctrl+Alt+Shift+W");
+  $("shortcut").hidden = false;
 } else {
   $("sandbox").hidden = false;
   $("sandbox").onselect = $("sandbox").onkeyup = $("sandbox").onmouseup = refreshPicker;

@@ -5,6 +5,7 @@ const STRINGS = {
   zh: {
     convert: "轉換選取文字",
     restore: "還原",
+    shortcut: (k) => `快捷鍵：${k}（唔使開面板都可以轉換）`,
     restoreTip: "刪走選取範圍內嘅讀音同自訂注音",
     pickHeading: "揀讀音",
     pickEmpty: "選取一個或幾個字，或者將游標放喺詞語入面，呢度會列出每個字嘅讀音。",
@@ -48,6 +49,7 @@ const STRINGS = {
   en: {
     convert: "Convert selection",
     restore: "Restore",
+    shortcut: (k) => `Shortcut: ${k} (converts without opening this pane)`,
     restoreTip: "Remove readings and custom annotations from the selection",
     pickHeading: "Pick a reading",
     pickEmpty: "Select a few characters, or put the cursor in a word, to list the readings of each character here.",

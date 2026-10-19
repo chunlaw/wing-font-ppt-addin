@@ -1,7 +1,7 @@
 // node build.mjs vendor — copy the browser-loadable library files out of
 //                         node_modules into ./vendor (runs on npm install).
 // node build.mjs        — also assemble the static site into ./dist.
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 const VENDOR = {
   "vendor/harfbuzzjs/index.mjs": "node_modules/harfbuzzjs/dist/index.mjs",
@@ -20,4 +20,14 @@ if (process.argv[2] !== "vendor") {
   for (const f of ["index.html", "manifest.xml", "shortcuts.json", "app.js", "convert.js", "i18n.js", "assets", "vendor"]) {
     cpSync(f, "dist/" + f, { recursive: true });
   }
+}
+
+// PowerPoint's WebView keeps serving cached scripts long after a deploy, so
+// every build gets new script URLs. shortcut: imports inside vendor/ aren't
+// stamped; bump them by hand if a vendored library is upgraded.
+if (process.argv[2] !== "vendor") {
+  const v = "?v=" + Date.now().toString(36);
+  const stamp = (f, re) => writeFileSync(f, readFileSync(f, "utf8").replace(re, `$1${v}$2`));
+  stamp("dist/index.html", /(src="app\.js)(")/);
+  stamp("dist/app.js", /(from "\.\/[^"]+?\.m?js)(")/g);
 }

@@ -65,6 +65,7 @@
 
     #status { margin: 12px 0 0; white-space: pre-wrap; font-size: 12px; color: var(--muted); }
     #status.bad { color: var(--warn-fg); }
+    #shortcut { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
     #mixed { margin: 10px 0 0; padding: 6px 10px; border-radius: 6px; font-size: 12px; background: var(--warn-bg); color: var(--warn-fg); }
     /* Standalone sandbox: ccmp off imitates PowerPoint's lack of GSUB. */
     #sandbox { width: 100%; height: 7em; margin-top: 12px; padding: 6px; font-size: 28px; line-height: 1.9; color: var(--fg);
@@ -76,6 +77,7 @@
     <button id="convert" data-i18n="convert"></button>
     <button id="restore" data-i18n="restore" data-i18n-attr="title:restoreTip"></button>
   </div>
+  <p id="shortcut" hidden></p>
   <p id="mixed" role="status" data-i18n="mixedFonts" hidden></p>
   <p id="status" role="status">…</p>
 
